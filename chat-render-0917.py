@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.route("/")
 def index():
-    return render_template("chat-render-0917.html")
+    return render_template("chat-render-0920.html")
 
 @app.route('/chat', methods=['POST'])
 def chat():
