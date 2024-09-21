@@ -1,1 +1,1 @@
-web: python3 chat-render-0920.py
+web: gunicorn chat-render-0920:app
