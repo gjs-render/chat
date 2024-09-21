@@ -12,10 +12,11 @@
   <h1>chimpanda<br>chat completions</h1>
 	
   <form id="chat-form">
-  <div class="form-group">
-   <label for="prompt"></label>
-    <textarea id="prompt" name="prompt" placeholder="Type your message..." required></textarea>
-  </div>
+  
+   <div class="form-group">
+       <label for="prompt"></label>
+       <textarea id="prompt" name="prompt" placeholder="Type your message..." required></textarea>
+   </div>
 		   
    <div class="form-group">
       <label for="model">model</label>
