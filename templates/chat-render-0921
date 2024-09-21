@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@200&display=swap" rel="stylesheet">
+<title>chimpanda chat completions</title>
+<link rel="stylesheet" type="text/css" href="/static/chat-render-0920.css"></head>
+
+<body>
+<div class="main-container">
+  <h1>chimpanda<br>chat completions</h1>
+	
+  <form id="chat-form">
+  <div class="form-group">
+    <label for="prompt">prompt</label>
+    <textarea id="prompt" name="prompt" placeholder="Type your message..." required></textarea>
+  </div>
+		   
+   <div class="form-group">
+      <label for="model">model</label>
+      <select id="model" name="model">
+      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+      <option value="gpt-4">gpt-4</option>
+      <option value="gpt-4o-mini">gpt-4o-mini</option>
+      <option value="gpt-4o-2024-08-06" selected>gpt-4o-2024-08-06</option>
+      </select>
+  </div>
+
+  <div class="form-group">
+      <label for="max_tokens">max tokens</label>
+      <select id="max_tokens" name="max_tokens">
+      <option value="1000">1000</option>
+      <option value="2000" selected>2000</option>
+      <option value="3000">3000</option>
+      <option value="4000">4000</option>
+      <option value="5000">5000</option>
+      </select>
+      </div>
+
+    <div class="form-group">
+      <label for="temperature">temperature</label>
+      <select id="temperature" name="temperature">
+      <option value="0.0">0.0</option>
+      <option value="0.5" selected>0.5</option>
+      <option value="1.0">1.0</option>
+      <option value="1.5">1.5</option>
+      <option value="2.0">2.0</option>
+      </select>
+    </div>
+		   
+  <div class="form-group">
+    <button type="submit">send</button>
+  </div>
+		
+  </form>
+  <div id="chat-history"></div>
+  </div>
+
+	
+<script>
+const form = document.getElementById('chat-form');
+const promptInput = document.getElementById('prompt');
+const chatHistory = document.getElementById('chat-history');
+let conversation = [];
+
+form.addEventListener('submit', async function(event) {
+  event.preventDefault();
+  const prompt = promptInput.value.trim();
+  
+  // Add user's input to chat history
+  const userMessage = document.createElement('p');
+  userMessage.innerHTML = `<strong>You:</strong> ${prompt}`;
+  chatHistory.insertBefore(userMessage, chatHistory.firstChild);
+
+  promptInput.value = '';
+  promptInput.style.height = '60px'; // Reset textarea height to 60px after submitting
+
+  try {
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: prompt,
+        model: document.getElementById('model').value,
+        max_tokens: parseInt(document.getElementById('max_tokens').value),
+        temperature: parseFloat(document.getElementById('temperature').value),
+        conversation: conversation
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    conversation = result.conversation;
+
+    // Add assistant's response to chat history
+    const assistantMessage = document.createElement('p');
+    assistantMessage.innerHTML = `<strong>Assistant:</strong> ${result.response}`;
+    chatHistory.insertBefore(assistantMessage, chatHistory.firstChild);
+
+    chatHistory.scrollTop = 0;
+  } catch (error) {
+    console.error('Fetch error:', error);
+    const errorMessage = document.createElement('p');
+    errorMessage.style.color = 'red';
+    errorMessage.textContent = `An error occurred: ${error.message}`;
+    chatHistory.insertBefore(errorMessage, chatHistory.firstChild);
+  }
+});
+
+promptInput.addEventListener('input', function() {
+  this.style.height = '60px'; // Reset height to initial 60px
+
+  // Expand height if content exceeds current height
+  if (this.scrollHeight > this.clientHeight) {
+    this.style.height = `${this.scrollHeight}px`;
+  }
+});
+
+  </script>
+</body>
+</html>
