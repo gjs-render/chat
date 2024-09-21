@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -14,6 +13,7 @@
 	
   <form id="chat-form">
   <div class="form-group">
+   <label for="prompt"></label>
     <textarea id="prompt" name="prompt" placeholder="Type your message..." required></textarea>
   </div>
 		   
