@@ -1,1 +1,1 @@
-web: python3 chat-render-0920.py
+python3 chat-render-0920.py
