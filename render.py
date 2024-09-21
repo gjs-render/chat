@@ -1,127 +1,66 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@200&display=swap" rel="stylesheet">
-<title>chimpanda chat completions</title>
-<link rel="stylesheet" type="text/css" href="/static/chat-render-0921.css"></head>
+from flask import Flask, request, jsonify, render_template
+from openai import OpenAI, OpenAIError
+import os
+from dotenv import load_dotenv
+import logging
 
-<body>
-<div class="main-container">
-  <h1>chimpanda<br>chat completions</h1>
-	
-  <form id="chat-form">
-  
-   <div class="form-group">
-       <label for="prompt"></label>
-       <textarea id="prompt" name="prompt" placeholder="Type your message..." required></textarea>
-   </div>
-		   
-   <div class="form-group">
-      <label for="model">model</label>
-      <select id="model" name="model">
-      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-      <option value="gpt-4">gpt-4</option>
-      <option value="gpt-4o-2024-08-06" selected>gpt-4o-2024-08-06</option>
-      </select>
-  </div>
+# Initialize the Flask app
+app = Flask(__name__)
 
-  <div class="form-group">
-      <label for="max_tokens">max tokens</label>
-      <select id="max_tokens" name="max_tokens">
-      <option value="1000">1000</option>
-      <option value="2000" selected>2000</option>
-      <option value="3000">3000</option>
-      <option value="4000">4000</option>
-      <option value="5000">5000</option>
-      </select>
-      </div>
+# Retrieve the OpenAI API key from environment variables
+api_key = os.getenv('OPENAI_API_KEY')
 
-    <div class="form-group">
-      <label for="temperature">temperature</label>
-      <select id="temperature" name="temperature">
-      <option value="0.0">0.0</option>
-      <option value="0.5" selected>0.5</option>
-      <option value="1.0">1.0</option>
-      <option value="1.5">1.5</option>
-      <option value="2.0">2.0</option>
-      </select>
-    </div>
-		   
-  <div class="form-group">
-    <button type="submit">send</button>
-  </div>
-		
-  </form>
-  <div id="chat-history"></div>
-  </div>
+if not api_key:
+    raise ValueError("No OPENAI_API_KEY provided in environment variables")
 
-	
-<script>
-const form = document.getElementById('chat-form');
-const promptInput = document.getElementById('prompt');
-const chatHistory = document.getElementById('chat-history');
-let conversation = [];
+# Initialize the OpenAI client
+client = OpenAI(api_key=api_key)
 
-form.addEventListener('submit', async function(event) {
-  event.preventDefault();
-  const prompt = promptInput.value.trim();
-  
-  // Add user's input to chat history
-  const userMessage = document.createElement('p');
-  userMessage.innerHTML = `<strong>You:</strong> ${prompt}`;
-  chatHistory.insertBefore(userMessage, chatHistory.firstChild);
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-  promptInput.value = '';
-  promptInput.style.height = '60px'; // Reset textarea height to 60px after submitting
+@app.route("/")
+def index():
+    return render_template("chat-render-0921.html")
 
-  try {
-    const response = await fetch('/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: prompt,
-        model: document.getElementById('model').value,
-        max_tokens: parseInt(document.getElementById('max_tokens').value),
-        temperature: parseFloat(document.getElementById('temperature').value),
-        conversation: conversation
-      })
-    });
+@app.route('/chat', methods=['POST'])
+def chat():
+    logging.info('Received request: %s', request.data)
+    data = request.get_json()
+    user_input = data.get('message')
+    model = data.get('model', 'gpt-4o-2024-08-06')
+    max_tokens = data.get('max_tokens', 800)
+    temperature = data.get('temperature', 0.7)
+    conversation = data.get('conversation', [])
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
+    if not user_input:
+        return jsonify({'error': 'No message provided'}), 400
 
-    const result = await response.json();
-    conversation = result.conversation;
+    # Append the user input to the conversation
+    conversation.append({'role': 'user', 'content': user_input})
 
-    // Add assistant's response to chat history
-    const assistantMessage = document.createElement('p');
-    assistantMessage.innerHTML = `<strong>Assistant:</strong> ${result.response}`;
-    chatHistory.insertBefore(assistantMessage, chatHistory.firstChild);
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=conversation,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        # Get the assistant's response
+        assistant_response = response.choices[0].message.content
+        conversation.append({'role': 'assistant', 'content': assistant_response})
 
-    chatHistory.scrollTop = 0;
-  } catch (error) {
-    console.error('Fetch error:', error);
-    const errorMessage = document.createElement('p');
-    errorMessage.style.color = 'red';
-    errorMessage.textContent = `An error occurred: ${error.message}`;
-    chatHistory.insertBefore(errorMessage, chatHistory.firstChild);
-  }
-});
+        result = {'response': assistant_response, 'conversation': conversation}
+        logging.info('Response: %s', result)
+        return jsonify(result)
 
-promptInput.addEventListener('input', function() {
-  this.style.height = '60px'; // Reset height to initial 60px
+    except OpenAIError as e:
+        logging.error('OpenAIError: %s', e)
+        return jsonify({'error': str(e)}), 501
+    except Exception as e:
+        logging.error('Unexpected error: %s', e)
+        return jsonify({'error': 'An unexpected error occurred'}), 502
 
-  // Expand height if content exceeds current height
-  if (this.scrollHeight > this.clientHeight) {
-    this.style.height = `${this.scrollHeight}px`;
-  }
-});
 
-  </script>
-</body>
-</html>
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
